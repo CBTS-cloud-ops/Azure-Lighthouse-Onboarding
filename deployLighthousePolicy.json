@@ -43,6 +43,13 @@
       "metadata": {
         "description": "Name of the policy assignment (max 24 chars at MG scope)."
       }
+    },
+    "offerVersion": {
+      "type": "string",
+      "defaultValue": "1",
+      "metadata": {
+        "description": "Version tag for the authorizations set. Bump this whenever managedByAuthorizations changes; every subscription becomes non-compliant and a remediation task rolls the change out."
+      }
     }
   },
   "variables": {
@@ -63,7 +70,7 @@
         "mode": "All",
         "metadata": {
           "category": "Lighthouse",
-          "version": "1.0.0"
+          "version": "1.1.0"
         },
         "parameters": {
           "managedByTenantId": {
@@ -106,6 +113,13 @@
               "displayName": "Effect",
               "description": "Enable or disable the execution of the policy."
             }
+          },
+          "offerVersion": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Offer version",
+              "description": "Version tag embedded in the registration definition name. Bump to force re-deployment of updated authorizations."
+            }
           }
         },
         "policyRule": {
@@ -131,6 +145,10 @@
                   {
                     "field": "Microsoft.ManagedServices/registrationDefinitions/managedByTenantId",
                     "equals": "[[parameters('managedByTenantId')]"
+                  },
+                  {
+                    "field": "Microsoft.ManagedServices/registrationDefinitions/registrationDefinitionName",
+                    "equals": "[[concat(parameters('managedByName'), ' [v', parameters('offerVersion'), ']')]"
                   }
                 ]
               },
@@ -150,6 +168,9 @@
                     },
                     "managedByAuthorizations": {
                       "value": "[[parameters('managedByAuthorizations')]"
+                    },
+                    "offerVersion": {
+                      "value": "[[parameters('offerVersion')]"
                     }
                   },
                   "template": {
@@ -167,11 +188,15 @@
                       },
                       "managedByAuthorizations": {
                         "type": "array"
+                      },
+                      "offerVersion": {
+                        "type": "string"
                       }
                     },
                     "variables": {
                       "registrationName": "[[guid(parameters('managedByName'), parameters('managedByTenantId'))]",
-                      "assignmentName": "[[guid(parameters('managedByName'), parameters('managedByTenantId'), subscription().subscriptionId)]"
+                      "assignmentName": "[[guid(parameters('managedByName'), parameters('managedByTenantId'), subscription().subscriptionId)]",
+                      "displayName": "[[concat(parameters('managedByName'), ' [v', parameters('offerVersion'), ']')]"
                     },
                     "resources": [
                       {
@@ -179,7 +204,7 @@
                         "apiVersion": "2022-10-01",
                         "name": "[[variables('registrationName')]",
                         "properties": {
-                          "registrationDefinitionName": "[[parameters('managedByName')]",
+                          "registrationDefinitionName": "[[variables('displayName')]",
                           "description": "[[parameters('managedByDescription')]",
                           "managedByTenantId": "[[parameters('managedByTenantId')]",
                           "authorizations": "[[parameters('managedByAuthorizations')]"
@@ -233,6 +258,9 @@
           },
           "managedByAuthorizations": {
             "value": "[parameters('managedByAuthorizations')]"
+          },
+          "offerVersion": {
+            "value": "[parameters('offerVersion')]"
           }
         }
       }

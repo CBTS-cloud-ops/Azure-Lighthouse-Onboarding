@@ -30,6 +30,9 @@
           "principalIdDisplayName": "CBTS Lighthouse - Contributor"
         }
       ]
+    },
+    "offerVersion": {
+      "value": "1"
     }
   }
 }
