@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "managedByTenantId": {
+      "value": "6b264fd5-6304-4ef2-8ca7-d216257ea6b9"
+    },
+    "managedByName": {
+      "value": "CBTS/ONx Lighthouse access"
+    },
+    "managedByDescription": {
+      "value": "CBTS/ONx Lighthouse access"
+    },
+    "deploymentLocation": {
+      "value": "eastus"
+    },
+    "policyAssignmentName": {
+      "value": "cbts-onx-enforce-lighthouse"
+    },
+    "managedByAuthorizations": {
+      "value": [
+        {
+          "principalId": "df5581b3-687a-4b67-b996-ebb2b0a80cfe",
+          "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+          "principalIdDisplayName": "CBTS Lighthouse - Reader"
+        },
+        {
+          "principalId": "df5581b3-687a-4b67-b996-ebb2b0a80cfe",
+          "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+          "principalIdDisplayName": "CBTS Lighthouse - Contributor"
+        }
+      ]
+    },
+    "offerVersion": {
+      "value": "1"
+    }
+  }
+}
