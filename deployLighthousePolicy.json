@@ -1,0 +1,264 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Deploys an Azure Policy (DeployIfNotExists) at management-group scope that onboards every subscription underneath it to Azure Lighthouse. Includes the policy definition, an assignment with a system-assigned managed identity, and the Owner role assignment that identity needs to create Microsoft.ManagedServices resources."
+  },
+  "parameters": {
+    "managedByTenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Entra tenant ID of the managing (MSP) tenant."
+      }
+    },
+    "managedByName": {
+      "type": "string",
+      "metadata": {
+        "description": "Display name of the Lighthouse offer / registration definition."
+      }
+    },
+    "managedByDescription": {
+      "type": "string",
+      "metadata": {
+        "description": "Description of the Lighthouse offer."
+      }
+    },
+    "managedByAuthorizations": {
+      "type": "array",
+      "metadata": {
+        "description": "Array of authorizations: principalId, principalIdDisplayName, roleDefinitionId, optional delegatedRoleDefinitionIds."
+      }
+    },
+    "deploymentLocation": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Region used for the subscription-level deployment the policy triggers. Metadata only; Lighthouse resources are not regional."
+      }
+    },
+    "policyAssignmentName": {
+      "type": "string",
+      "defaultValue": "enforce-lighthouse",
+      "maxLength": 24,
+      "metadata": {
+        "description": "Name of the policy assignment (max 24 chars at MG scope)."
+      }
+    }
+  },
+  "variables": {
+    "policyDefinitionName": "Enforce-Azure-Lighthouse",
+    "ownerRoleId": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+    "policyDefinitionId": "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', managementGroup().name), 'Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]",
+    "roleAssignmentName": "[guid(managementGroup().name, parameters('policyAssignmentName'), variables('ownerRoleId'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/policyDefinitions",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('policyDefinitionName')]",
+      "properties": {
+        "displayName": "Enforce Azure Lighthouse delegation on subscriptions",
+        "description": "Ensures every subscription is delegated to the specified managing tenant via Azure Lighthouse. Deploys a registrationDefinition and registrationAssignment if one for the managing tenant does not exist.",
+        "policyType": "Custom",
+        "mode": "All",
+        "metadata": {
+          "category": "Lighthouse",
+          "version": "1.0.0"
+        },
+        "parameters": {
+          "managedByTenantId": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Managing tenant ID",
+              "description": "Entra tenant ID of the managing tenant."
+            }
+          },
+          "managedByName": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Offer name",
+              "description": "Registration definition display name."
+            }
+          },
+          "managedByDescription": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Offer description",
+              "description": "Registration definition description."
+            }
+          },
+          "managedByAuthorizations": {
+            "type": "Array",
+            "metadata": {
+              "displayName": "Authorizations",
+              "description": "Lighthouse authorizations array."
+            }
+          },
+          "effect": {
+            "type": "String",
+            "defaultValue": "DeployIfNotExists",
+            "allowedValues": [
+              "DeployIfNotExists",
+              "AuditIfNotExists",
+              "Disabled"
+            ],
+            "metadata": {
+              "displayName": "Effect",
+              "description": "Enable or disable the execution of the policy."
+            }
+          }
+        },
+        "policyRule": {
+          "if": {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions"
+          },
+          "then": {
+            "effect": "[[parameters('effect')]",
+            "details": {
+              "type": "Microsoft.ManagedServices/registrationDefinitions",
+              "deploymentScope": "subscription",
+              "existenceScope": "subscription",
+              "roleDefinitionIds": [
+                "[concat('/providers/Microsoft.Authorization/roleDefinitions/', variables('ownerRoleId'))]"
+              ],
+              "existenceCondition": {
+                "allOf": [
+                  {
+                    "field": "type",
+                    "equals": "Microsoft.ManagedServices/registrationDefinitions"
+                  },
+                  {
+                    "field": "Microsoft.ManagedServices/registrationDefinitions/managedByTenantId",
+                    "equals": "[[parameters('managedByTenantId')]"
+                  }
+                ]
+              },
+              "deployment": {
+                "location": "eastus",
+                "properties": {
+                  "mode": "incremental",
+                  "parameters": {
+                    "managedByTenantId": {
+                      "value": "[[parameters('managedByTenantId')]"
+                    },
+                    "managedByName": {
+                      "value": "[[parameters('managedByName')]"
+                    },
+                    "managedByDescription": {
+                      "value": "[[parameters('managedByDescription')]"
+                    },
+                    "managedByAuthorizations": {
+                      "value": "[[parameters('managedByAuthorizations')]"
+                    }
+                  },
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "managedByTenantId": {
+                        "type": "string"
+                      },
+                      "managedByName": {
+                        "type": "string"
+                      },
+                      "managedByDescription": {
+                        "type": "string"
+                      },
+                      "managedByAuthorizations": {
+                        "type": "array"
+                      }
+                    },
+                    "variables": {
+                      "registrationName": "[[guid(parameters('managedByName'), parameters('managedByTenantId'))]",
+                      "assignmentName": "[[guid(parameters('managedByName'), parameters('managedByTenantId'), subscription().subscriptionId)]"
+                    },
+                    "resources": [
+                      {
+                        "type": "Microsoft.ManagedServices/registrationDefinitions",
+                        "apiVersion": "2022-10-01",
+                        "name": "[[variables('registrationName')]",
+                        "properties": {
+                          "registrationDefinitionName": "[[parameters('managedByName')]",
+                          "description": "[[parameters('managedByDescription')]",
+                          "managedByTenantId": "[[parameters('managedByTenantId')]",
+                          "authorizations": "[[parameters('managedByAuthorizations')]"
+                        }
+                      },
+                      {
+                        "type": "Microsoft.ManagedServices/registrationAssignments",
+                        "apiVersion": "2022-10-01",
+                        "name": "[[variables('assignmentName')]",
+                        "dependsOn": [
+                          "[[resourceId('Microsoft.ManagedServices/registrationDefinitions', variables('registrationName'))]"
+                        ],
+                        "properties": {
+                          "registrationDefinitionId": "[[resourceId('Microsoft.ManagedServices/registrationDefinitions', variables('registrationName'))]"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/policyAssignments",
+      "apiVersion": "2024-04-01",
+      "name": "[parameters('policyAssignmentName')]",
+      "location": "[parameters('deploymentLocation')]",
+      "dependsOn": [
+        "[variables('policyDefinitionId')]"
+      ],
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "displayName": "Enforce Azure Lighthouse delegation",
+        "description": "[concat('Delegates all subscriptions under this management group to ', parameters('managedByName'))]",
+        "policyDefinitionId": "[variables('policyDefinitionId')]",
+        "enforcementMode": "Default",
+        "parameters": {
+          "managedByTenantId": {
+            "value": "[parameters('managedByTenantId')]"
+          },
+          "managedByName": {
+            "value": "[parameters('managedByName')]"
+          },
+          "managedByDescription": {
+            "value": "[parameters('managedByDescription')]"
+          },
+          "managedByAuthorizations": {
+            "value": "[parameters('managedByAuthorizations')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('roleAssignmentName')]",
+      "dependsOn": [
+        "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', managementGroup().name), 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName'))]"
+      ],
+      "properties": {
+        "roleDefinitionId": "[concat('/providers/Microsoft.Authorization/roleDefinitions/', variables('ownerRoleId'))]",
+        "principalId": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', managementGroup().name), 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName')), '2024-04-01', 'Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    }
+  ],
+  "outputs": {
+    "policyDefinitionId": {
+      "type": "string",
+      "value": "[variables('policyDefinitionId')]"
+    },
+    "policyAssignmentId": {
+      "type": "string",
+      "value": "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', managementGroup().name), 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName'))]"
+    }
+  }
+}
