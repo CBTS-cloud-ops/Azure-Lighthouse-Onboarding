@@ -15,7 +15,7 @@
       "value": "eastus"
     },
     "policyAssignmentName": {
-      "value": "cbts-onx-enforce-lighthouse"
+      "value": "cbts-enforce-lighthouse"
     },
     "managedByAuthorizations": {
       "value": [
